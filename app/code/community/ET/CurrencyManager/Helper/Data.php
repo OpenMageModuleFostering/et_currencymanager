@@ -89,7 +89,6 @@ class ET_CurrencyManager_Helper_Data extends Mage_Core_Helper_Abstract
     {
         $config = Mage::getStoreConfig('currencymanager/general');
 
-        $moduleName = Mage::app()->getRequest()->getModuleName();
         $options = array();
         $optionsAdvanced = array();
         $storeId = Mage::app()->getStore()->getStoreId();
@@ -122,6 +121,10 @@ class ET_CurrencyManager_Helper_Data extends Mage_Core_Helper_Abstract
             if (isset($config['precision'])) { // precision must be in range -1 .. 30
                 $options['precision'] = min(30, max(-1, (int)$config['precision']));
             }
+
+            if (isset($config['zerotext'])) {
+                $optionsAdvanced['zerotext'] = $config['zerotext'];
+            }
         }
 
         if (isset($config['position'])) {
@@ -130,6 +133,7 @@ class ET_CurrencyManager_Helper_Data extends Mage_Core_Helper_Abstract
         if (isset($config['display'])) {
             $options['display'] = (int)$config['display'];
         }
+
 
         if (isset($config['input_admin'])) {
             if ($config['input_admin'] > 0) {
@@ -141,6 +145,8 @@ class ET_CurrencyManager_Helper_Data extends Mage_Core_Helper_Abstract
         $optionsAdvanced['cutzerodecimal'] = $config['cutzerodecimal'];
         $optionsAdvanced['cutzerodecimal_suffix'] = isset($config['cutzerodecimal_suffix']) ?
             $config['cutzerodecimal_suffix'] : "";
+        $optionsAdvanced['min_decimal_count'] = isset($config['min_decimal_count']) ?
+            $config['min_decimal_count'] : "2";
     }
 
     protected function _collectCurrencyOptions($config, $currency, $notCheckout, &$options, &$optionsAdvanced)
@@ -161,14 +167,19 @@ class ET_CurrencyManager_Helper_Data extends Mage_Core_Helper_Abstract
                 );
             }
 
+            if (isset($symbolReplace['min_decimal_count'])) {
+                $tmpOptionsAdvanced["min_decimal_count"] = $this->_getCurrencyOption(
+                    $currency, $symbolReplace, 'min_decimal_count'
+                );
+            }
+
+
             $tmpOptions['position'] = $this->_getCurrencyOption($currency, $symbolReplace, 'position', true);
             $tmpOptions['display'] = $this->_getCurrencyOption($currency, $symbolReplace, 'display', true);
             $tmpOptions['symbol'] = $this->_getCurrencyOption($currency, $symbolReplace, 'symbol');
 
             if ($notCheckout) {
-                $tmpOptionsAdvanced['zerotext'] = $this->_getCurrencyOption(
-                    $currency, $symbolReplace, 'zerotext'
-                );
+                $tmpOptionsAdvanced['zerotext'] = $this->_getCurrencyOption($currency, $symbolReplace, 'zerotext');
 
                 $precision = $this->_getCurrencyOption($currency, $symbolReplace, 'precision', true);
                 if ($precision !== false) {
@@ -204,11 +215,44 @@ class ET_CurrencyManager_Helper_Data extends Mage_Core_Helper_Abstract
         $moduleName = Mage::app()->getRequest()->getModuleName();
         $controllerName = Mage::app()->getRequest()->getControllerName();
 
-        return (($moduleName == 'checkout')
-            || ($moduleName == 'sales')
+        $orderModules = array('sales', 'checkout', 'paypal');
+        $modifiedOrderModules = array(
+            'order_modules' => new Varien_Object(array('module_names'=>$orderModules)),
+        );
+
+        Mage::dispatchEvent('et_currencymanager_checking_is_in_order_before', $modifiedOrderModules);
+
+        $orderModules = $modifiedOrderModules['order_modules']->getData('module_names');
+
+        return ((in_array($moduleName, $orderModules))
             || (
                 ($moduleName == 'admin') && (strpos($controllerName, 'sales_order') !== false)
             ));
+    }
+
+
+    /**
+     * To check where price is used
+     * We need to drop html tags in some places. Example: PDF printing in admin
+     *
+     * @return bool
+     */
+    public function isNeedDropTags()
+    {
+        $action = Mage::app()->getRequest()->getActionName();
+        $moduleName = Mage::app()->getRequest()->getModuleName();
+        $controllerName = Mage::app()->getRequest()->getControllerName();
+
+        $actionList = array('print');
+        $controllerNameList = array('sales_order_invoice',
+            'sales_order_shipment', 'sales_order_creditmemo');
+
+        if (in_array($action, $actionList)
+            && in_array($controllerName, $controllerNameList)
+            && ($moduleName == 'admin')) {
+            return true;
+        }
+        return false;
     }
 
     protected function _unsetSymbolReplace($config)
@@ -219,6 +263,7 @@ class ET_CurrencyManager_Helper_Data extends Mage_Core_Helper_Abstract
                 if (strlen(trim($symbolReplace['currency'][$symbolReplaceKey])) == 0) {
                     unset($symbolReplace['currency'][$symbolReplaceKey]);
                     unset($symbolReplace['precision'][$symbolReplaceKey]);
+                    unset($symbolReplace['min_decimal_count'][$symbolReplaceKey]);
                     unset($symbolReplace['cutzerodecimal'][$symbolReplaceKey]);
                     unset($symbolReplace['cutzerodecimal_suffix'][$symbolReplaceKey]);
                     unset($symbolReplace['position'][$symbolReplaceKey]);
