@@ -1,3 +1,5 @@
+
+
 ## Original Package Description
 
 Currency Manager lets shop owner manage price display in an easy and convenient way: show custom currency symbol, change its position, change number of decimals and etc.
