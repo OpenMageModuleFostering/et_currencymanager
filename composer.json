@@ -1,16 +1,19 @@
 {
-    "name": "OpenMageModuleFostering/ET_CurrencyManager",
+    "name": "OpenMageModuleFostering\/ET_CurrencyManager",
     "type": "magento-module",
     "license": "ETWS-Free-License-(EFL1)",
     "homepage": "",
     "description": "Currency Manager lets shop owner manage price display in an easy and convenient way: show custom currency symbol, change its position, change number of decimals and etc.",
     "authors": [
-    {
-        "name": "Jurij",
-        "email": "support@etwebsolutions.com"
-    }
-],
+        {
+            "name": "Jurij",
+            "email": "support@etwebsolutions.com"
+        }
+    ],
     "suggest": {
-        "magento-hackathon/magento-composer-installer": "*"
-    }
+        "magento-hackathon\/magento-composer-installer": "*"
+    },
+    "keywords": [
+        "openmage-module"
+    ]
 }
